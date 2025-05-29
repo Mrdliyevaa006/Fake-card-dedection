@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
-from PIL import Image
 
 app = Flask(__name__)
 
@@ -14,7 +13,7 @@ def calculate_ssim(img1, img2):
 
 @app.route('/')
 def index():
-    return 'Fake Card Detection API is running!'
+    return render_template('index.html')  
 
 @app.route('/detect', methods=['POST'])
 def detect():
