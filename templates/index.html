@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fake Card Detector</title>
+    <style>
+        body { font-family: Arial; padding: 40px; }
+        form { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Fake Card Detector</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <label>Real Image:</label>
+        <input type="file" name="real" required><br><br>
+        <label>Fake Image:</label>
+        <input type="file" name="fake" required><br><br>
+        <button type="submit">Detect</button>
+    </form>
+    <h3 id="result"></h3>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const response = await fetch('/detect', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            document.getElementById('result').innerText = 
+                `Result: ${data.result} | SSIM Score: ${data.ssim_score.toFixed(4)}`;
+        });
+    </script>
+</body>
+</html>
