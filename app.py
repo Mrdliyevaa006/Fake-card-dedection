@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify, render_template
-import cv2
+from flask import Flask, request, jsonify
 import numpy as np
+import cv2
 from skimage.metrics import structural_similarity as ssim
+from PIL import Image
 
 app = Flask(__name__)
 
@@ -11,9 +12,15 @@ def calculate_ssim(img1, img2):
     (score, diff) = ssim(grayA, grayB, full=True)
     return score
 
+def prepare_image(file_storage):
+    img = Image.open(file_storage).convert('RGB')
+    img_np = np.array(img)
+    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    return img_cv
+
 @app.route('/')
 def index():
-    return render_template('index.html')  
+    return 'Fake Card Detection API is running!'
 
 @app.route('/detect', methods=['POST'])
 def detect():
@@ -23,14 +30,19 @@ def detect():
     real_file = request.files['real']
     fake_file = request.files['fake']
 
-    real_np = np.frombuffer(real_file.read(), np.uint8)
-    fake_np = np.frombuffer(fake_file.read(), np.uint8)
+    real_img = prepare_image(real_file)
+    fake_img = prepare_image(fake_file)
 
-    real_img = cv2.imdecode(real_np, cv2.IMREAD_COLOR)
-    fake_img = cv2.imdecode(fake_np, cv2.IMREAD_COLOR)
+    h_real, w_real = real_img.shape[:2]
+    h_fake, w_fake = fake_img.shape[:2]
 
-    real_img = cv2.resize(real_img, (fake_img.shape[1], fake_img.shape[0]))
-    score = calculate_ssim(real_img, fake_img)
+    new_w = min(w_real, w_fake)
+    new_h = min(h_real, h_fake)
+
+    real_resized = cv2.resize(real_img, (new_w, new_h))
+    fake_resized = cv2.resize(fake_img, (new_w, new_h))
+
+    score = calculate_ssim(real_resized, fake_resized)
 
     result = 'Fake' if score < 0.9 else 'Real'
     return jsonify({'ssim_score': score, 'result': result})
