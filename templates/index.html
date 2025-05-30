@@ -8,7 +8,7 @@
 <body>
     <div class="container">
         <h1>Fake Card Detector</h1>
-        <form id="uploadForm" enctype="multipart/form-data">
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
             <label>Real Image:</label>
             <input type="file" name="real" required><br>
             <label>Fake Image:</label>
@@ -28,7 +28,7 @@
                 body: formData
             });
             const data = await response.json();
-            document.getElementById('result').innerText = 
+            document.getElementById('result').innerText =
                 `Result: ${data.result} | SSIM Score: ${data.ssim_score.toFixed(4)}`;
         });
     </script>
