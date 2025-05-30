@@ -1,51 +1,54 @@
-from flask import Flask, request, jsonify
-import numpy as np
-import cv2
+from flask import Flask, request, jsonify, render_template
+from werkzeug.utils import secure_filename
+import os
 from skimage.metrics import structural_similarity as ssim
-from PIL import Image
+import cv2
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
-def calculate_ssim(img1, img2):
-    grayA = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-    grayB = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-    (score, diff) = ssim(grayA, grayB, full=True)
-    return score
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
-def prepare_image(file_storage):
-    img = Image.open(file_storage).convert('RGB')
-    img_np = np.array(img)
-    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-    return img_cv
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/')
 def index():
-    return 'Fake Card Detection API is running!'
+    return render_template('index.html')
 
 @app.route('/detect', methods=['POST'])
 def detect():
-    if 'real' not in request.files or 'fake' not in request.files:
-        return jsonify({'error': 'Both real and fake images must be uploaded.'}), 400
+    real_file = request.files.get('real')
+    fake_file = request.files.get('fake')
 
-    real_file = request.files['real']
-    fake_file = request.files['fake']
+    if not real_file or not fake_file:
+        return jsonify({'error': 'Both images are required'}), 400
 
-    real_img = prepare_image(real_file)
-    fake_img = prepare_image(fake_file)
+    if not (allowed_file(real_file.filename) and allowed_file(fake_file.filename)):
+        return jsonify({'error': 'Allowed image formats are png, jpg, jpeg, bmp'}), 400
 
-    h_real, w_real = real_img.shape[:2]
-    h_fake, w_fake = fake_img.shape[:2]
+    real_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(real_file.filename))
+    fake_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(fake_file.filename))
 
-    new_w = min(w_real, w_fake)
-    new_h = min(h_real, h_fake)
+    real_file.save(real_path)
+    fake_file.save(fake_path)
 
-    real_resized = cv2.resize(real_img, (new_w, new_h))
-    fake_resized = cv2.resize(fake_img, (new_w, new_h))
+    real_img = cv2.imread(real_path)
+    fake_img = cv2.imread(fake_path)
 
-    score = calculate_ssim(real_resized, fake_resized)
+    fake_img = cv2.resize(fake_img, (real_img.shape[1], real_img.shape[0]))
 
-    result = 'Fake' if score < 0.9 else 'Real'
-    return jsonify({'ssim_score': score, 'result': result})
+    real_gray = cv2.cvtColor(real_img, cv2.COLOR_BGR2GRAY)
+    fake_gray = cv2.cvtColor(fake_img, cv2.COLOR_BGR2GRAY)
+
+    score, _ = ssim(real_gray, fake_gray, full=True)
+
+    result = 'FAKE' if score < 0.9 else 'REAL'
+
+    return jsonify({'result': result, 'ssim_score': score})
 
 if __name__ == '__main__':
     app.run(debug=True)
