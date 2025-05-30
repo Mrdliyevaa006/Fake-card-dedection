@@ -30,14 +30,20 @@ def detect():
     if not (allowed_file(real_file.filename) and allowed_file(fake_file.filename)):
         return jsonify({'error': 'Allowed image formats are png, jpg, jpeg, bmp'}), 400
 
-    real_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(real_file.filename))
-    fake_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(fake_file.filename))
+    real_filename = secure_filename(real_file.filename)
+    fake_filename = secure_filename(fake_file.filename)
+
+    real_path = os.path.join(app.config['UPLOAD_FOLDER'], real_filename)
+    fake_path = os.path.join(app.config['UPLOAD_FOLDER'], fake_filename)
 
     real_file.save(real_path)
     fake_file.save(fake_path)
 
     real_img = cv2.imread(real_path)
     fake_img = cv2.imread(fake_path)
+
+    if real_img is None or fake_img is None:
+        return jsonify({'error': 'Failed to read one or both images'}), 500
 
     fake_img = cv2.resize(fake_img, (real_img.shape[1], real_img.shape[0]))
 
@@ -51,6 +57,4 @@ def detect():
     return jsonify({'result': result, 'ssim_score': score})
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True)
